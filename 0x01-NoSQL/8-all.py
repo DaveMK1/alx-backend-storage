@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 This module have a utility function that list all document
 """
