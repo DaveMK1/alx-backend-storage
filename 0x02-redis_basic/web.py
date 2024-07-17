@@ -3,21 +3,35 @@
 '''
 import redis
 import requests
-from datetime import timedelta
+from functools import wraps
+from typing import Callable
 
 
-def get_page(url: str) -> str:
-    '''Fetches the content of a URL, caching the response and monitoring the request
+redis_store = redis.Redis()
+'''The module-level Redis instance.
+'''
+
+
+def data_cacher(method: Callable) -> Callable:
+    '''Stores the results of retrieved data in cache
     '''
-    if url is None or len(url.strip()) == 0:
-        return ''
-    redis_store = redis.Redis()
-    res_key = 'result:{}'.format(url)
-    req_key = 'count:{}'.format(url)
-    result = redis_store.get(res_key)
-    if result is not None:
-        redis_store.incr(req_key)
+    @wraps(method)
+    def invoker(url) -> str:
+        '''The wrapper function for storing the output in cache
+        '''
+        redis_store.incr(f'count:{url}')
+        result = redis_store.get(f'result:{url}')
+        if result:
+            return result.decode('utf-8')
+        result = method(url)
+        redis_store.set(f'count:{url}', 0)
+        redis_store.setex(f'result:{url}', 10, result)
         return result
-    result = requests.get(url).content.decode('utf-8')
-    redis_store.setex(res_key, timedelta(seconds=10), result)
-    return result
+    return invoker
+
+
+@data_cacher
+def get_page(url: str) -> str:
+    '''Fetches the content from a URL, caching the response and monitoring the request
+    '''
+    return requests.get(url).text
