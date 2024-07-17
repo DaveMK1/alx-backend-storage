@@ -17,7 +17,7 @@ def data_cacher(method: Callable) -> Callable:
     '''
     @wraps(method)
     def invoker(url) -> str:
-        '''The wrapper function for storing the output in cache
+        '''The enclosing function for storing the output in cache
         '''
         redis_store.incr(f'count:{url}')
         result = redis_store.get(f'result:{url}')
